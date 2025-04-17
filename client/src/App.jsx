@@ -1,33 +1,35 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import Footer from './components/Home/Footer'
+import Navbar from './components/Home/Navbar'
+import AuthModel from './components/Home/AuthModel'
+import { Home } from './pages/Home'
+import MeetingHub from './pages/MeetingHub'
+
+
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import NotFound from './components/NotFound'
+import MeetingRoom from './pages/MeetingRoom'
+
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [authVisible, setAuthVisible] = useState(false)
+  const onAuthToggle = () => {
+    setAuthVisible(!authVisible);
+  }
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <BrowserRouter>
+        <Navbar onAuthToggle={onAuthToggle} />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/meeting" element={<MeetingHub />} />
+          <Route path="/room" element={<MeetingRoom/>} />
+          <Route path="*" element={<NotFound/>} />
+        </Routes>
+        <Footer />
+        {authVisible && <AuthModel onAuthToggle={onAuthToggle} />}
+      </BrowserRouter>
     </>
   )
 }
