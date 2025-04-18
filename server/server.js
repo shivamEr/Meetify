@@ -1,20 +1,22 @@
-const http = require('http');
-const app = require('./app');
-const { Server } = require('socket.io');
+const express = require('express');
 const connectDB = require('./config/connectDB');
-const socketSetup = require('./sockets');
+const cors = require('cors');
+require('dotenv').config();
 
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*", // for dev only
-    methods: ["GET", "POST"]
-  }
-});
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-socketSetup(io);  // custom Socket.IO logic
+// Routes importing
+const authRoutes = require('./routes/Auth'); // <-- Potential issue here
+// const meetRoutes = require('./routes/Meeting');
 
+// Connect to MongoDB
 connectDB();
 
+// Routes
+app.use('/api/auth', authRoutes);
+// app.use('/api/meeting', meetRoutes);
+
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
