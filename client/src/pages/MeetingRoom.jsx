@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
 import { FaMicrophoneSlash, FaVideoSlash, FaDesktop, FaEllipsisH, FaSmile, FaHandPaper, FaRobot, FaPhoneSlash } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+
 
 const MeetingRoom = () => {
   const [showAI, setShowAI] = useState(false);
+  const navigate = useNavigate();
+
+  if(!localStorage.getItem('token')){
+    navigate('/');
+  }
 
   return (
     <div className="h-screen w-full bg-[#121212] text-white flex flex-col justify-between items-center px-6 py-4 relative">

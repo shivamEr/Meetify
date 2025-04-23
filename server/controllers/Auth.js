@@ -10,7 +10,7 @@ exports.signup = async(req, res)=>{
         
         // if user already exists
         if(existingUser){
-            return res.status(400).json({"message":"User already exists"})
+            return res.status(400).json({success:false,"message":"User already exists"})
         }
 
         // hashing the password
@@ -39,7 +39,7 @@ exports.signup = async(req, res)=>{
 
     } catch (error) {
         console.log(error);
-        res.status(500).json({message:"Error occured during signup, please try again later"})
+        res.status(500).json({success:false,message:"Error occured during signup, please try again later"})
     }
 }
 
