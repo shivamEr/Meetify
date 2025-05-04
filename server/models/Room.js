@@ -11,7 +11,7 @@ const RoomSchema = new mongoose.Schema({
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // optional
   status: { type: String, enum: ['open', 'full', 'closed'], default: 'open' },
   createdAt: { type: Date, default: Date.now },
-  expiresAt: { type: Date,default: Date.now + 5 } // Optional for TTL-based cleanup
+  expiresAt: { type: Date} // Optional for TTL-based cleanup
 });
 
 // Optional: TTL index to auto-delete rooms
