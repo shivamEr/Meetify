@@ -1,39 +1,49 @@
 import React, { useState } from 'react';
 
 const CreateMeetingForm = ({ onCreate }) => {
-  const [privacy, setPrivacy] = useState('public');
-  const [meetingKey, setMeetingKey] = useState('');
+  const [privacy, setPrivacy] = useState('Public');
+  const [password, setPassword] = useState('');
 
   const handlePrivacyChange = (value) => {
     setPrivacy(value);
-    if (value === 'private') {
-      const key = Math.random().toString(36).substr(2, 10).toUpperCase();
-      setMeetingKey(key);
-    } else {
-      setMeetingKey('');
-    }
+    if (value === 'Public') setPassword('');
+    else setPassword(generateRandomKey());
   };
 
-  const handleSubmit = (e) => {
+  const generateRandomKey = () => {
+    return Math.random().toString(36).substring(2, 10).toUpperCase();
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const form = e.target;
-    const data = {
-      name: form.groupName.value,
-      topic: form.topic.value,
-      language: form.language.value,
-      capacity: form.capacity.value,
+
+    const roomData = {
+      name: form.groupName?.value || '',
+      topic: form.topic?.value || '',
+      language: form.language?.value || 'English',
       privacy,
-      meetingKey,
+      password: privacy === 'Private' ? password : (form.password?.value || ''),
+      capacity: parseInt(form.capacity?.value || '0', 10),
     };
-    onCreate(data);
+
+    console.log("Sending roomData:", roomData); 
+
+
+    onCreate(roomData);
     form.reset();
-    setPrivacy('public');
-    setMeetingKey('');
+    setPrivacy('Public');
+    setPassword('');
+    // console.log(res.data);
+
   };
 
+
   return (
-    <form onSubmit={handleSubmit} className="max-w-xl mx-auto bg-gradient-to-br from-indigo-700 via-purple-700 to-fuchsia-600 p-8 rounded-3xl shadow-2xl text-white space-y-6 mt-10 relative overflow-hidden">
-      {/* Glowing background animation */}
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-xl mx-auto bg-gradient-to-br from-indigo-700 via-purple-700 to-fuchsia-600 p-8 rounded-3xl shadow-2xl text-white space-y-6 mt-10 relative overflow-hidden"
+    >
       <div className="absolute -top-10 -right-10 w-72 h-72 bg-pink-500 opacity-30 blur-3xl rounded-full pointer-events-none animate-pulse"></div>
       <div className="absolute bottom-0 left-0 w-40 h-40 bg-yellow-400 opacity-20 blur-2xl rounded-full pointer-events-none animate-spin-slow"></div>
 
@@ -41,21 +51,21 @@ const CreateMeetingForm = ({ onCreate }) => {
 
       <input
         name="groupName"
-        className="w-full bg-white/10 border border-white/30 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 placeholder-white/70"
+        className="w-full bg-white/10 border border-white/30 rounded-lg px-4 py-3 placeholder-white/70"
         placeholder="Group Name"
         required
       />
 
       <input
         name="topic"
-        className="w-full bg-white/10 border border-white/30 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 placeholder-white/70"
+        className="w-full bg-white/10 border border-white/30 rounded-lg px-4 py-3 placeholder-white/70"
         placeholder="Meeting Topic"
         required
       />
 
       <select
         name="language"
-        className="w-full bg-white/10 border border-white/30 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-white"
+        className="w-full bg-white/10 border border-white/30 rounded-lg px-4 py-3 text-white"
       >
         <option>English</option>
         <option>Hindi</option>
@@ -68,7 +78,7 @@ const CreateMeetingForm = ({ onCreate }) => {
         name="capacity"
         type="number"
         min="2"
-        className="w-full bg-white/10 border border-white/30 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 placeholder-white/70"
+        className="w-full bg-white/10 border border-white/30 rounded-lg px-4 py-3 placeholder-white/70"
         placeholder="Capacity"
         required
       />
@@ -78,9 +88,9 @@ const CreateMeetingForm = ({ onCreate }) => {
           <input
             type="radio"
             name="privacy"
-            value="public"
-            checked={privacy === 'public'}
-            onChange={() => handlePrivacyChange('public')}
+            value="Public"
+            checked={privacy === 'Public'}
+            onChange={() => handlePrivacyChange('Public')}
             className="accent-yellow-400"
           />
           <span className="ml-2 text-white/90">Public</span>
@@ -89,21 +99,35 @@ const CreateMeetingForm = ({ onCreate }) => {
           <input
             type="radio"
             name="privacy"
-            value="private"
-            checked={privacy === 'private'}
-            onChange={() => handlePrivacyChange('private')}
+            value="Private"
+            checked={privacy === 'Private'}
+            onChange={() => handlePrivacyChange('Private')}
             className="accent-yellow-400"
           />
           <span className="ml-2 text-white/90">Private</span>
         </label>
       </div>
 
-      {privacy === 'private' && (
+      {privacy === 'Public' && (
         <div>
-          <label className="block text-sm font-medium text-white/80 mb-1">Secret Meeting Key</label>
+          <label className="block text-sm font-medium text-white/80 mb-1">Optional Password</label>
+          <input
+            name="password"
+            type="text"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full bg-white/10 border border-white/30 rounded-lg px-4 py-3 text-white placeholder-white/60"
+            placeholder="Leave empty if not needed"
+          />
+        </div>
+      )}
+
+      {privacy === 'Private' && (
+        <div>
+          <label className="block text-sm font-medium text-white/80 mb-1">Generated Meeting Key</label>
           <input
             type="text"
-            value={meetingKey}
+            value={password}
             readOnly
             className="w-full bg-white/10 border border-white/30 rounded-lg px-4 py-3 text-yellow-300 font-mono"
           />

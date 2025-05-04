@@ -1,52 +1,43 @@
-import React, { useState } from 'react';
+import React, { memo, useEffect, useState } from 'react';
+import axios from 'axios';
 import CreateMeetingForm from '../components/Meeting/CreateMeetingForm';
-import JoinMeetingForm from '../components/Meeting/JoinMeetingForm';
 import LiveMeetingList from '../components/Meeting/LiveMeetingForm';
 
 const MeetingHub = () => {
-  const sample = [
-    {
-      name: "Daily Standup",
-      topic: "Team Updates",
-      language: "English",
-      privacy: "Private",
-      capacity: 10,
-    },
-    {
-      name: "React Workshop",
-      topic: "React Basics & Hooks",
-      language: "English",
-      privacy: "Public",
-      capacity: 100,
-    },
-    {
-      name: "French Speaking Club",
-      topic: "Conversational French",
-      language: "French",
-      privacy: "Public",
-      capacity: 25,
-    },
-    {
-      name: "Product Strategy",
-      topic: "Q2 Roadmap Planning",
-      language: "English",
-      privacy: "Private",
-      capacity: 15,
-    },
-    {
-      name: "Open AI Q&A",
-      topic: "AI and ChatGPT Discussion",
-      language: "English",
-      privacy: "Public",
-      capacity: 200,
-    },
-  ];
-  
-  const [meetings, setMeetings] = useState(sample);
+  const [meetings, setMeetings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateRoom, setShowCreateRoom] = useState(false);
 
-  const handleCreateMeeting = (newMeeting) => {
-    setMeetings([...meetings, newMeeting]);
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  const fetchMeetings = async () => {
+    try {
+      const res = await axios.get(`${apiUrl}/rooms`);
+      console.log(res);
+      setMeetings(res.data);
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleCreateMeeting = async (newMeeting) => {
+    try {
+      const res = await axios.post(`${apiUrl}/rooms`, newMeeting);
+      setMeetings(prev => [res.data, ...prev]);
+    } catch (err) {
+      console.error('Error creating meeting:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchMeetings();
+  }, []);
+
+  const toggleCreateRoom = ()=>{
+    setShowCreateRoom(!showCreateRoom);
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 px-6 py-10">
@@ -55,14 +46,19 @@ const MeetingHub = () => {
         <p className="text-gray-600">Create or Join meetings, and view active sessions</p>
       </header>
 
-      <div className="grid md:grid-cols-2 gap-10">
-        <CreateMeetingForm onCreate={handleCreateMeeting} />
-        <JoinMeetingForm />
+      <div>
+      <button onClick={toggleCreateRoom} className="mt-4 bg-yellow-400 text-purple-900 font-bold py-2 rounded-full shadow w-40 hover:bg-yellow-300 transition-all duration-200"
+              >Create Room</button>
+          {showCreateRoom?<CreateMeetingForm onCreate={handleCreateMeeting} />:""}
       </div>
 
-      <LiveMeetingList meetings={meetings} />
+      {loading ? (
+        <p className="mt-10 text-center text-gray-500">Loading meetings...</p>
+      ) : (
+        <LiveMeetingList meetings={meetings} />
+      )}
     </div>
   );
 };
 
-export default MeetingHub;
+export default memo(MeetingHub);

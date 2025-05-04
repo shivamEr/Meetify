@@ -1,81 +1,231 @@
-import React, { useState } from 'react';
-import { FaMicrophoneSlash, FaVideoSlash, FaDesktop, FaEllipsisH, FaSmile, FaHandPaper, FaRobot, FaPhoneSlash } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { io } from 'socket.io-client';
 
+const apiUrl = import.meta.env.VITE_SOCKET_SERVER;
 
-const MeetingRoom = () => {
-  const [showAI, setShowAI] = useState(false);
-  const navigate = useNavigate();
+const socket = io(apiUrl);
 
-  if(!localStorage.getItem('token')){
-    navigate('/');
-  }
+export default function VideoChat() {
+  console.log(apiUrl);
+  const { roomId } = useParams();
+  const [peers, setPeers] = useState({});
+  const peersRef = useRef({});
+  const [remoteStreams, setRemoteStreams] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [showChat, setShowChat] = useState(true);
+
+  const localVideo = useRef();
+  const localStream = useRef();
+  const username = useRef('User' + Math.floor(Math.random() * 1000));
+
+  // Setup media and socket handlers
+  useEffect(() => {
+    const start = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStream.current = stream;
+      if (localVideo.current) localVideo.current.srcObject = stream;
+
+      // Join room with user metadata
+      socket.emit('join-room', {
+        roomId,
+        user: { id: socket.id, name: username.current }
+      });
+
+      // When another user joins, create a peer and send offer
+      socket.on('user-joined', async (userId) => {
+        if (peersRef.current[userId]) return;
+        const peer = createPeer(userId);
+        peersRef.current[userId] = peer;
+
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        socket.emit('signal', { to: userId, from: socket.id, signal: offer });
+      });
+
+      // Handle incoming signaling data
+      socket.on('signal', async ({ from, signal }) => {
+        let peer = peersRef.current[from];
+        if (!peer) {
+          peer = createPeer(from);
+          peersRef.current[from] = peer;
+        }
+
+        if (signal.type === 'offer') {
+          await peer.setRemoteDescription(new RTCSessionDescription(signal));
+          const answer = await peer.createAnswer();
+          await peer.setLocalDescription(answer);
+          socket.emit('signal', { to: from, from: socket.id, signal: answer });
+        } else if (signal.type === 'answer') {
+          await peer.setRemoteDescription(new RTCSessionDescription(signal));
+        } else if (signal.candidate) {
+          await peer.addIceCandidate(new RTCIceCandidate(signal));
+        }
+      });
+
+      // Remove peer on leave
+      socket.on('user-left', (userId) => {
+        if (peersRef.current[userId]) {
+          peersRef.current[userId].close();
+          delete peersRef.current[userId];
+        }
+        setRemoteStreams(prev => prev.filter(s => s.userId !== userId));
+      });
+
+      // Update when someone toggles mic/camera
+      socket.on('media-toggle', ({ from, type, state }) => {
+        console.log(`Peer ${from} toggled ${type}: ${state}`);
+        // You could update UI badges here
+      });
+
+      // Update on screen-share events
+      socket.on('screen-share-started', ({ from }) => {
+        console.log(`Peer ${from} started screen share`);
+      });
+      socket.on('screen-share-stopped', ({ from }) => {
+        console.log(`Peer ${from} stopped screen share`);
+      });
+    };
+    start();
+
+    return () => {
+      socket.off('user-joined');
+      socket.off('signal');
+      socket.off('user-left');
+      socket.off('media-toggle');
+      socket.off('screen-share-started');
+      socket.off('screen-share-stopped');
+    };
+  }, [roomId]);
+
+  // Chat message listener
+  useEffect(() => {
+    const handleMessage = (msg) => setMessages(prev => [...prev, msg]);
+    socket.on('chat-message', handleMessage);
+    return () => socket.off('chat-message', handleMessage);
+  }, []);
+
+  // Create RTCPeerConnection
+  const createPeer = (peerId) => {
+    const pc = new RTCPeerConnection();
+    localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        socket.emit('signal', { to: peerId, from: socket.id, signal: e.candidate });
+      }
+    };
+
+    pc.ontrack = (e) => {
+      const newStream = e.streams[0];
+      newStream.userId = peerId;
+      setRemoteStreams(prev => [...prev.filter(s => s.id !== newStream.id), newStream]);
+    };
+
+    return pc;
+  };
+
+  // Screen sharing
+  const handleScreenShare = async () => {
+    try {
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const screenTrack = screenStream.getVideoTracks()[0];
+      const sender = Object.values(peersRef.current)
+        .flatMap(p => p.getSenders())
+        .find(s => s.track.kind === 'video');
+
+      if (sender) sender.replaceTrack(screenTrack);
+      socket.emit('screen-share-start', { roomId });
+
+      screenTrack.onended = async () => {
+        const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const cameraTrack = cameraStream.getVideoTracks()[0];
+        if (sender) sender.replaceTrack(cameraTrack);
+        if (localVideo.current) localVideo.current.srcObject = cameraStream;
+        socket.emit('screen-share-stop', { roomId });
+      };
+
+      if (localVideo.current) localVideo.current.srcObject = screenStream;
+    } catch (err) {
+      console.error('Error sharing screen:', err);
+    }
+  };
+
+  // Toggle camera
+  const toggleCamera = () => {
+    const videoTrack = localStream.current.getVideoTracks()[0];
+    videoTrack.enabled = !videoTrack.enabled;
+    setIsCameraOn(videoTrack.enabled);
+    socket.emit('media-toggle', { roomId, type: 'video', state: videoTrack.enabled });
+  };
+
+  // Toggle microphone
+  const toggleMic = () => {
+    const audioTrack = localStream.current.getAudioTracks()[0];
+    audioTrack.enabled = !audioTrack.enabled;
+    setIsMicOn(audioTrack.enabled);
+    socket.emit('media-toggle', { roomId, type: 'audio', state: audioTrack.enabled });
+  };
+
+  // Toggle chat panel
+  const toggleChat = () => setShowChat(prev => !prev);
+
+  // Send chat message
+  const sendMessage = () => {
+    if (!chatInput.trim()) return;
+    const msg = { sender: username.current, message: chatInput };
+    socket.emit('chat-message', { roomId, ...msg });
+    setMessages(prev => [...prev, msg]);
+    setChatInput('');
+  };
 
   return (
-    <div className="h-screen w-full bg-[#121212] text-white flex flex-col justify-between items-center px-6 py-4 relative">
-      
-      {/* AI Panel */}
-      {showAI && (
-        <div className="absolute top-6 right-6 bg-[#1f1f1f] p-5 rounded-xl shadow-xl w-72 z-50">
-          <h5 className="text-lg font-semibold mb-4">🤖 AI Assistant</h5>
-          <ul className="space-y-3 text-sm text-gray-300">
-            <li>📄 <strong>Summary</strong></li>
-            <li>📝 <strong>Action Items</strong></li>
-            <li>📊 <strong>Meeting Analytics</strong></li>
-            <li>🌐 <strong>Live Translation</strong></li>
-            <li>💬 <strong>Chat Assistant</strong></li>
-          </ul>
+    <div className="min-h-screen bg-gray-900 text-white p-6 space-y-6">
+      <h1 className="text-3xl font-bold text-center">🎥 Room: {roomId}</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <video ref={localVideo} autoPlay muted playsInline className="rounded-2xl shadow-lg border border-gray-700" />
+        {remoteStreams.map((stream, i) => (
+          <video
+            key={i}
+            autoPlay
+            playsInline
+            className="rounded-2xl shadow-lg border border-gray-700"
+            ref={video => video && (video.srcObject = stream)}
+          />
+        ))}
+      </div>
+
+      <div className="flex justify-center gap-4">
+        <button onClick={handleScreenShare} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg shadow">Share Screen</button>
+        <button onClick={toggleCamera} className={`px-4 py-2 rounded-lg shadow ${isCameraOn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>{isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}</button>
+        <button onClick={toggleMic} className={`px-4 py-2 rounded-lg shadow ${isMicOn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>{isMicOn ? 'Mute' : 'Unmute'}</button>
+        <button onClick={toggleChat} className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg shadow">Toggle Chat</button>
+      </div>
+
+      {showChat && (
+        <div className="bg-gray-800 rounded-xl p-4 shadow-md">
+          <div className="h-40 overflow-y-auto space-y-1 border-b border-gray-700 pb-2">
+            {messages.map((msg, i) => (
+              <div key={i}><span className="font-semibold text-blue-400">{msg.sender}:</span> {msg.message}</div>
+            ))}
+          </div>
+          <div className="flex mt-2">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendMessage()}
+              placeholder="Type a message..."
+              className="flex-1 px-3 py-2 rounded-l-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none"
+            />
+            <button onClick={sendMessage} className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-r-md">Send</button>
+          </div>
         </div>
       )}
-
-      {/* Meeting Info */}
-      <div className="absolute bottom-28 left-6 text-gray-400 text-sm">
-        12:58 PM &nbsp; | &nbsp; <strong>qhd-zery-kcx</strong>
-      </div>
-
-      {/* Video / Avatars */}
-      <div className="flex-1 flex justify-center items-center w-full">
-        <div className="text-center">
-          <div className="w-32 h-32 bg-green-600 rounded-full flex items-center justify-center text-4xl font-bold shadow-lg">
-            S
-          </div>
-          <div className="mt-4 text-xl font-medium">Gaust User</div>
-        </div>
-      </div>
-
-      {/* Control Bar */}
-      <div className="bg-black/60 px-6 py-4 rounded-full flex gap-5 items-center justify-center shadow-lg">
-        <button title="Mic" className="hover:bg-gray-700 p-3 rounded-full">
-          <FaMicrophoneSlash size={20} />
-        </button>
-        <button title="Camera" className="hover:bg-gray-700 p-3 rounded-full">
-          <FaVideoSlash size={20} />
-        </button>
-        <button title="Present" className="hover:bg-gray-700 p-3 rounded-full">
-          <FaDesktop size={20} />
-        </button>
-        <button title="More" className="hover:bg-gray-700 p-3 rounded-full">
-          <FaEllipsisH size={20} />
-        </button>
-        <button title="Emoji" className="hover:bg-gray-700 p-3 rounded-full">
-          <FaSmile size={20} />
-        </button>
-        <button title="Raise Hand" className="hover:bg-gray-700 p-3 rounded-full">
-          <FaHandPaper size={20} />
-        </button>
-        <button
-          title="AI Assistant"
-          className="hover:bg-gray-700 p-3 rounded-full"
-          onClick={() => setShowAI(!showAI)}
-        >
-          <FaRobot size={20} />
-        </button>
-        <button title="End Call" className="bg-red-600 hover:bg-red-700 p-3 rounded-full">
-          <FaPhoneSlash size={20} />
-        </button>
-      </div>
     </div>
   );
-};
-
-export default MeetingRoom;
+}

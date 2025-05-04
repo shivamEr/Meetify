@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/Authenticate/AuthContext";
 
+const apiUrl = import.meta.env.VITE_API_URL;
 const Login = ({handleLoging}) => {
   const [formData, setFormData] = useState({
     email: "",
@@ -22,7 +23,7 @@ const Login = ({handleLoging}) => {
     e.preventDefault();
 
     // Api Fetching to login with token authentication
-    const response = await fetch('http://localhost:5000/api/auth/login', {
+    const response = await fetch(`${apiUrl}/auth/login`, {
       method: 'POST',
       headers: {
         "Content-Type": "application/json",
@@ -36,6 +37,7 @@ const Login = ({handleLoging}) => {
       localStorage.setItem('token', data.authtoken);
       login();
       console.log("Login Data:", formData);
+      localStorage.setItem('username', formData.email);
       navigate("/meeting");
     }
     else {
