@@ -4,7 +4,7 @@ import { io } from 'socket.io-client';
 const SocketContext = createContext(null);
 
 // Replace with your backend server URL
-const SOCKET_SERVER_URL = 'http://localhost:5000'; 
+const SOCKET_SERVER_URL = import.meta.env.VITE_SOCKET_SERVER; 
 
 export const SocketProvider = ({ children }) => {
   const socketRef = useRef();
