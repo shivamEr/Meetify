@@ -2,15 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
-const apiUrl = import.meta.env.VITE_SOCKET_SERVER;
-
-const socket = io(apiUrl);
-
 export default function VideoChat() {
-  console.log(apiUrl);
+  const apiUrl = import.meta.env.VITE_SOCKET_SERVER;
   const { roomId } = useParams();
-  const [peers, setPeers] = useState({});
+
+  const socketRef = useRef(null);
+  const localVideo = useRef(null);
+  const localStream = useRef(null);
   const peersRef = useRef({});
+
   const [remoteStreams, setRemoteStreams] = useState([]);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
@@ -18,27 +18,32 @@ export default function VideoChat() {
   const [isMicOn, setIsMicOn] = useState(true);
   const [showChat, setShowChat] = useState(true);
 
-  const localVideo = useRef();
-  const localStream = useRef();
   const username = useRef('User' + Math.floor(Math.random() * 1000));
 
   // Setup media and socket handlers
   useEffect(() => {
+    // Initialize socket once per component lifecycle
+    if (!socketRef.current) {
+      socketRef.current = io(apiUrl, { transports: ['websocket'] });
+    }
+    const socket = socketRef.current;
+
     const start = async () => {
+      // Get local media stream
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localStream.current = stream;
       if (localVideo.current) localVideo.current.srcObject = stream;
 
-      // Join room with user metadata
+      // Join the room
       socket.emit('join-room', {
         roomId,
         user: { id: socket.id, name: username.current }
       });
 
-      // When another user joins, create a peer and send offer
+      // When a new user joins
       socket.on('user-joined', async (userId) => {
         if (peersRef.current[userId]) return;
-        const peer = createPeer(userId);
+        const peer = createPeer(userId, socket);
         peersRef.current[userId] = peer;
 
         const offer = await peer.createOffer();
@@ -46,11 +51,11 @@ export default function VideoChat() {
         socket.emit('signal', { to: userId, from: socket.id, signal: offer });
       });
 
-      // Handle incoming signaling data
+      // Handle signaling data
       socket.on('signal', async ({ from, signal }) => {
         let peer = peersRef.current[from];
         if (!peer) {
-          peer = createPeer(from);
+          peer = createPeer(from, socket);
           peersRef.current[from] = peer;
         }
 
@@ -66,7 +71,7 @@ export default function VideoChat() {
         }
       });
 
-      // Remove peer on leave
+      // When a user leaves
       socket.on('user-left', (userId) => {
         if (peersRef.current[userId]) {
           peersRef.current[userId].close();
@@ -75,13 +80,12 @@ export default function VideoChat() {
         setRemoteStreams(prev => prev.filter(s => s.userId !== userId));
       });
 
-      // Update when someone toggles mic/camera
+      // Media toggle events
       socket.on('media-toggle', ({ from, type, state }) => {
         console.log(`Peer ${from} toggled ${type}: ${state}`);
-        // You could update UI badges here
       });
 
-      // Update on screen-share events
+      // Screen share events
       socket.on('screen-share-started', ({ from }) => {
         console.log(`Peer ${from} started screen share`);
       });
@@ -89,8 +93,10 @@ export default function VideoChat() {
         console.log(`Peer ${from} stopped screen share`);
       });
     };
+
     start();
 
+    // Cleanup on unmount or roomId change
     return () => {
       socket.off('user-joined');
       socket.off('signal');
@@ -98,18 +104,21 @@ export default function VideoChat() {
       socket.off('media-toggle');
       socket.off('screen-share-started');
       socket.off('screen-share-stopped');
+      socket.disconnect();
+      socketRef.current = null;
     };
-  }, [roomId]);
+  }, [roomId, apiUrl]);
 
   // Chat message listener
   useEffect(() => {
+    const socket = socketRef.current;
     const handleMessage = (msg) => setMessages(prev => [...prev, msg]);
     socket.on('chat-message', handleMessage);
     return () => socket.off('chat-message', handleMessage);
   }, []);
 
-  // Create RTCPeerConnection
-  const createPeer = (peerId) => {
+  // Helper to create RTCPeerConnection
+  const createPeer = (peerId, socket) => {
     const pc = new RTCPeerConnection();
     localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
 
@@ -130,6 +139,7 @@ export default function VideoChat() {
 
   // Screen sharing
   const handleScreenShare = async () => {
+    const socket = socketRef.current;
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
       const screenTrack = screenStream.getVideoTracks()[0];
@@ -150,12 +160,13 @@ export default function VideoChat() {
 
       if (localVideo.current) localVideo.current.srcObject = screenStream;
     } catch (err) {
-      console.error('Error sharing screen:', err);
+      console.error('[VideoChat] Error sharing screen:', err);
     }
   };
 
   // Toggle camera
   const toggleCamera = () => {
+    const socket = socketRef.current;
     const videoTrack = localStream.current.getVideoTracks()[0];
     videoTrack.enabled = !videoTrack.enabled;
     setIsCameraOn(videoTrack.enabled);
@@ -164,17 +175,16 @@ export default function VideoChat() {
 
   // Toggle microphone
   const toggleMic = () => {
+    const socket = socketRef.current;
     const audioTrack = localStream.current.getAudioTracks()[0];
     audioTrack.enabled = !audioTrack.enabled;
     setIsMicOn(audioTrack.enabled);
     socket.emit('media-toggle', { roomId, type: 'audio', state: audioTrack.enabled });
   };
 
-  // Toggle chat panel
-  const toggleChat = () => setShowChat(prev => !prev);
-
   // Send chat message
   const sendMessage = () => {
+    const socket = socketRef.current;
     if (!chatInput.trim()) return;
     const msg = { sender: username.current, message: chatInput };
     socket.emit('chat-message', { roomId, ...msg });
@@ -203,14 +213,17 @@ export default function VideoChat() {
         <button onClick={handleScreenShare} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg shadow">Share Screen</button>
         <button onClick={toggleCamera} className={`px-4 py-2 rounded-lg shadow ${isCameraOn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>{isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}</button>
         <button onClick={toggleMic} className={`px-4 py-2 rounded-lg shadow ${isMicOn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>{isMicOn ? 'Mute' : 'Unmute'}</button>
-        <button onClick={toggleChat} className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg shadow">Toggle Chat</button>
+        <button onClick={() => setShowChat(prev => !prev)} className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg shadow">Toggle Chat</button>
       </div>
 
       {showChat && (
-        <div className="bg-gray-800 rounded-xl p-4 shadow-md">
+        <div className="bg-gray-800 rounded-xl p-4 shadow-md max-w-xl mx-auto">
           <div className="h-40 overflow-y-auto space-y-1 border-b border-gray-700 pb-2">
             {messages.map((msg, i) => (
-              <div key={i}><span className="font-semibold text-blue-400">{msg.sender}:</span> {msg.message}</div>
+              <div key={i} className="flex">
+                <span className="font-semibold text-blue-400 mr-2">{msg.sender}:</span>
+                <span>{msg.message}</span>
+              </div>
             ))}
           </div>
           <div className="flex mt-2">
