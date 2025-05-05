@@ -24,18 +24,7 @@ exports.signup = async(req, res)=>{
             password: hashedPassword
         });
         await user.save();
-
-        const data = {
-            user: {
-                id: user._id
-            }
-        }
-        // generating token using jwt
-        const authtoken = jwt.sign(data, process.env.JWT_SECRET, {
-            expiresIn: '1h'
-        });
-        res.json({success:true, authtoken: authtoken});
-        // res.json(user);
+        res.status(201).json({ success: true, message: "You registered" });
 
     } catch (error) {
         console.log(error);
@@ -47,11 +36,11 @@ exports.login = async(req, res)=>{
     try {
         const user = await User.findOne({email: req.body.email});
         if(!user){
-            res.status(400).json({success:false, message:"Please enter valid email or password"})
+            return res.status(400).json({success:false, message:"Please enter valid email or password"})
         }
 
         const password = req.body.password;
-        const isMatch = bcrypt.compare(password, user.password);
+        const isMatch =  await bcrypt.compare(password, user.password);
         if(!isMatch){
             return res.status(400).json({
                 success:false,
