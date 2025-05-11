@@ -36,8 +36,8 @@ const Login = ({handleLoging}) => {
     if (data.success) {
       localStorage.setItem('token', data.authtoken);
       login();
-      console.log("Login Data:", formData);
-      localStorage.setItem('username', formData.email);
+      console.log("Login Data:", data);
+      localStorage.setItem('username', data.username);
       navigate("/meeting");
     }
     else {

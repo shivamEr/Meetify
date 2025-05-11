@@ -58,7 +58,7 @@ exports.login = async(req, res)=>{
         const authtoken = jwt.sign(data, process.env.JWT_SECRET, {
             expiresIn: '1h'
         });
-        res.json({success:true, authtoken: authtoken });
+        res.json({success:true, authtoken: authtoken, username:user.name });
 
     } catch (error) {
         console.error(error);

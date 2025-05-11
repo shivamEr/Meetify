@@ -8,6 +8,7 @@ require('dotenv').config();
 const connectDB = require('./config/connectDB');
 const authRoutes = require('./routes/Auth');
 const roomRoutes = require('./routes/Room');
+const turnRoute = require('./routes/Turn')
 
 const app = express();
 const server = http.createServer(app);
@@ -30,6 +31,9 @@ connectDB();
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
+
+// Stun server used
+app.use(turnRoute);
 
 // Room Users Map
 const roomUsers = new Map();

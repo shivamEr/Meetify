@@ -1,6 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
+
+// Icons
+import {
+  FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash,
+  FaDesktop, FaEllipsisH, FaPhoneSlash,
+  FaComment,
+} from 'react-icons/fa';
 
 export default function VideoChat() {
   const apiUrl = import.meta.env.VITE_SOCKET_SERVER;
@@ -16,9 +23,10 @@ export default function VideoChat() {
   const [chatInput, setChatInput] = useState('');
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
-  const [showChat, setShowChat] = useState(true);
+  const [showChat, setShowChat] = useState(false);
 
-  const username = useRef('User' + Math.floor(Math.random() * 1000));
+  const username = localStorage.getItem('username');
+  // console.log(username);
 
   // Setup media and socket handlers
   useEffect(() => {
@@ -37,7 +45,7 @@ export default function VideoChat() {
       // Join the room
       socket.emit('join-room', {
         roomId,
-        user: { id: socket.id, name: username.current }
+        user: { id: socket.id, name: username }
       });
 
       // When a new user joins
@@ -119,7 +127,16 @@ export default function VideoChat() {
 
   // Helper to create RTCPeerConnection
   const createPeer = (peerId, socket) => {
-    const pc = new RTCPeerConnection();
+    // fetching stun credential
+    //  const response = await fetch(`${apiUrl}/api/ice-servers`);
+    //  const iceServers = await response.json();
+    //  console.log(iceServers);
+
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.xirsys.com" }
+      ]
+    });
     localStream.current.getTracks().forEach(track => pc.addTrack(track, localStream.current));
 
     pc.onicecandidate = (e) => {
@@ -186,11 +203,19 @@ export default function VideoChat() {
   const sendMessage = () => {
     const socket = socketRef.current;
     if (!chatInput.trim()) return;
-    const msg = { sender: username.current, message: chatInput };
+    const msg = { sender: username, message: chatInput };
     socket.emit('chat-message', { roomId, ...msg });
     setMessages(prev => [...prev, msg]);
     setChatInput('');
   };
+  
+  const navigate = useNavigate();
+  const handleLeft = ()=>{
+    const socket = socketRef.current;
+    socket.disconnect();
+    console.log("f-user disconnect")
+    navigate('/');
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6 space-y-6">
@@ -210,10 +235,14 @@ export default function VideoChat() {
       </div>
 
       <div className="flex justify-center gap-4">
-        <button onClick={handleScreenShare} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg shadow">Share Screen</button>
-        <button onClick={toggleCamera} className={`px-4 py-2 rounded-lg shadow ${isCameraOn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>{isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}</button>
-        <button onClick={toggleMic} className={`px-4 py-2 rounded-lg shadow ${isMicOn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>{isMicOn ? 'Mute' : 'Unmute'}</button>
-        <button onClick={() => setShowChat(prev => !prev)} className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg shadow">Toggle Chat</button>
+
+        <button onClick={handleScreenShare} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg shadow"><FaDesktop /></button>
+        <button onClick={toggleCamera} className={`px-4 py-2 rounded-lg shadow ${isCameraOn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>{isCameraOn ? <FaVideo /> : <FaVideoSlash />}</button>
+        <button onClick={toggleMic} className={`px-4 py-2 rounded-lg shadow ${isMicOn ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>{isMicOn ? <FaMicrophone /> : <FaMicrophoneSlash />}</button>
+        <button onClick={() => setShowChat(prev => !prev)} className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg shadow"><FaComment /></button>
+        <button className={`px-4 py-2 rounded-lg shadow  bg-green-600 hover:bg-green-700`}><FaEllipsisH /></button>
+        {/* <button className={`px-4 py-2 rounded-lg shadow  bg-green-600 hover:bg-green-700`}><FaHandPaper/></button> */}
+        <button className={`px-4 py-2 rounded-lg shadow  bg-red-600 hover:bg-red-700`} onClick={handleLeft}><FaPhoneSlash/></button>
       </div>
 
       {showChat && (
