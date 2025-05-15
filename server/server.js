@@ -63,7 +63,7 @@ io.on('connection', (socket) => {
 
   // Chat
   socket.on('chat-message', ({ roomId, sender, message }) => {
-    io.to(roomId).emit('chat-message', { sender, message });
+    socket.to(roomId).emit('chat-message', { sender, message });
   });
 
   // Media Toggle

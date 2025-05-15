@@ -3,7 +3,7 @@ import React from 'react';
 export default function VideoGrid({ localVideo, remoteStreams }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <video ref={localVideo} autoPlay muted playsInline className="rounded-2xl shadow-lg border border-gray-700" />
+      <video ref={localVideo} autoPlay muted playsInline className="rounded-2xl shadow-lg border border-gray-700" style={{transform:"scaleX(-1)"}}/>
       {remoteStreams.map((stream, i) => (
         <video
           key={i}

@@ -21,8 +21,8 @@ export default function VideoChat() {
     peersRef,
     remoteStreams,
     messages,
-    chatInput,
-    setChatInput,
+    // chatInput,
+    // setChatInput,
     sendMessage,
   } = useSocket(roomId, username, localVideo);
 
@@ -69,8 +69,8 @@ export default function VideoChat() {
       {showChat && (
         <ChatBox
           messages={messages}
-          chatInput={chatInput}
-          setChatInput={setChatInput}
+          // chatInput={chatInput}
+          // setChatInput={setChatInput}
           sendMessage={sendMessage}
         />
       )}

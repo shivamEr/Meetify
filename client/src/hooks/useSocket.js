@@ -10,7 +10,7 @@ export default function useSocket(roomId, username, localVideo) {
 
   const [remoteStreams, setRemoteStreams] = useState([]);
   const [messages, setMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
+  // const [chatInput, setChatInput] = useState('');
 
   useEffect(() => {
     if (!socketRef.current) {
@@ -79,13 +79,13 @@ export default function useSocket(roomId, username, localVideo) {
     };
   }, [roomId, apiUrl]);
 
-  const sendMessage = () => {
+  const sendMessage = (chatInput) => {
     const socket = socketRef.current;
     if (!chatInput.trim()) return;
     const msg = { sender: username, message: chatInput };
     socket.emit('chat-message', { roomId, ...msg });
     setMessages(prev => [...prev, msg]);
-    setChatInput('');
+    // setChatInput('');
   };
 
   return {
@@ -93,8 +93,8 @@ export default function useSocket(roomId, username, localVideo) {
     peersRef,
     remoteStreams,
     messages,
-    chatInput,
-    setChatInput,
+    // chatInput,
+    // setChatInput,
     sendMessage,
   };
 }
