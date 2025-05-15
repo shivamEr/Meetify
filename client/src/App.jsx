@@ -10,6 +10,9 @@ import Signup from './components/Home/Signup';
 import ProtectRoute from './context/Authenticate/ProtectRoute';
 import { SocketProvider } from './context/SocketProvider';
 
+// Toast Notification
+import { ToastContainer, Bounce } from 'react-toastify';
+
 function App() {
   return (
     <>
@@ -46,6 +49,19 @@ function App() {
           </Routes>
           <Footer />
         </BrowserRouter>
+        <ToastContainer
+          position="top-right"
+          autoClose={1500}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick={false}
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+          transition={Bounce}
+        />
       </SocketProvider>
     </>
   );

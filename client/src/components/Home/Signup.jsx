@@ -1,6 +1,7 @@
 // Signup.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast, Bounce } from "react-toastify";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -25,21 +26,43 @@ const Signup = () => {
     e.preventDefault();
 
     try {
-      const response = await fetch(`${apiUrl}/auth/signup`,{
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
+      const response = await fetch(`${apiUrl}/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        body:JSON.stringify(formData)
+        body: JSON.stringify(formData)
       })
 
       const json = await response.json();
-      if(json.success){
-        console.log("Signup Data:", formData);
+      if (json.success) {
+        // console.log("Signup Data:", formData);
+        toast.success('You Registered Succesfully!', {
+          position: "top-right",
+          autoClose: 1500,
+          hideProgressBar: false,
+          closeOnClick: false,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+          transition: Bounce,
+        });
         navigate('/login');
       }
-      else{
+      else {
         console.log("Unable to Signup");
+        toast.error('PLease complete all field!', {
+          position: "top-right",
+          autoClose: 1500,
+          hideProgressBar: false,
+          closeOnClick: false,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+          transition: Bounce,
+        });
       }
 
     } catch (error) {

@@ -1,23 +1,24 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/Authenticate/AuthContext";
+import { toast, Bounce } from "react-toastify";
 
 const apiUrl = import.meta.env.VITE_API_URL;
-const Login = ({handleLoging}) => {
+const Login = ({ handleLoging }) => {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
-  
+
   const navigate = useNavigate();
-  
+
   // ye dynamic data typing allow krega
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({ ...prevData, [name]: value, }));
   };
 
-  const {login} = useAuth(); // using context api
+  const { login } = useAuth(); // using context api
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,7 +29,7 @@ const Login = ({handleLoging}) => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({email:formData.email, password:formData.password})
+      body: JSON.stringify({ email: formData.email, password: formData.password })
     })
 
     const data = await response.json();
@@ -36,12 +37,34 @@ const Login = ({handleLoging}) => {
     if (data.success) {
       localStorage.setItem('token', data.authtoken);
       login();
-      console.log("Login Data:", data);
+      // console.log("Login Data:", data);
+      toast.success('You Logged In!', {
+        position: "top-right",
+        autoClose: 1500,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+        transition: Bounce,
+      });
       localStorage.setItem('username', data.username);
       navigate("/meeting");
     }
     else {
-      console.log("Not able to loging");
+      // console.log("Not able to loging");
+      toast.error('Write correct eamil or password!', {
+        position: "top-right",
+        autoClose: 1500,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+        transition: Bounce,
+      });
       navigate('/login');
     }
   };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast, Bounce } from 'react-toastify';
 
 const LiveMeetingList = ({ meetings }) => {
   const navigate = useNavigate();
@@ -15,11 +16,33 @@ const LiveMeetingList = ({ meetings }) => {
     if (meeting.privacy === 'Private') {
       const enteredPassword = passwords[roomId];
       if (enteredPassword !== meeting.password) {
-        alert('Incorrect meeting key!');
+        // alert('Incorrect meeting key!');
+        toast.warn('Incorrect meeting key!', {
+          position: "top-center",
+          autoClose: 1500,
+          hideProgressBar: false,
+          closeOnClick: false,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+          transition: Bounce,
+        });
         return;
       }
     }
-
+    
+    toast.success('Joined in meeting!', {
+      position: "top-center",
+      autoClose: 1500,
+      hideProgressBar: false,
+      closeOnClick: false,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "colored",
+      transition: Bounce,
+    });
     navigate(`/room/${roomId}`);
   };
 

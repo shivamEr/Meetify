@@ -7,6 +7,8 @@ import VideoGrid from '../components/Room/VideoGrid';
 import Controls from '../components/Room/Controls';
 import ChatBox from '../components/Room/ChatBox';
 
+import { toast, Bounce } from 'react-toastify';
+
 export default function VideoChat() {
   const { roomId } = useParams();
   const navigate = useNavigate();
@@ -33,6 +35,17 @@ export default function VideoChat() {
   } = useMedia(socketRef, peersRef, localVideo);
 
   const handleLeave = () => {
+    toast.success('Left From Meeting!', {
+        position: "top-center",
+        autoClose: 1500,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
     socketRef.current?.disconnect();
     navigate('/');
   };

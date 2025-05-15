@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast, Slide } from 'react-toastify';
 
 const CreateMeetingForm = ({ onCreate }) => {
   const [privacy, setPrivacy] = useState('Public');
@@ -27,7 +28,18 @@ const CreateMeetingForm = ({ onCreate }) => {
       capacity: parseInt(form.capacity?.value || '0', 10),
     };
 
-    console.log("Sending roomData:", roomData); 
+    // console.log("Sending roomData:", roomData); 
+    toast.success('Room created successfully!', {
+        position: "top-center",
+        autoClose: 1500,
+        hideProgressBar: false,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+        transition: Slide,
+      });
 
 
     onCreate(roomData);

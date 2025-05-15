@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/Authenticate/AuthContext";
 import { FaBars, FaTimes } from "react-icons/fa";
+import { toast, Flip } from "react-toastify";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -11,8 +12,17 @@ const Navbar = () => {
   const handleLogOut = () => {
     localStorage.removeItem("token");
     logout();
+    toast.success('Log out success!', {
+      position: "top-center",
+      autoClose: 1000,
+      hideProgressBar: true,
+      draggable: true,
+      progress: undefined,
+      theme: "colored",
+      transition: Flip,
+    });
     navigate("/");
-    window.location.reload();
+    // window.location.reload();
   };
 
   return (
